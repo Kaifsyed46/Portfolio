@@ -232,27 +232,68 @@ document.querySelectorAll('.skill-category').forEach(cat => {
 const contactForm = document.getElementById('contact-form');
 const submitBtn = document.getElementById('submit-btn');
 const formSuccess = document.getElementById('form-success');
+// Configure a Formspree endpoint: replace YOUR_FORM_ID with your form ID
+// Create a form at https://formspree.io and copy the endpoint (https://formspree.io/f/your_id)
+const FORM_ENDPOINT = 'https://formspree.io/f/mnjeqlyq';
 
-contactForm.addEventListener('submit', (e) => {
+contactForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  
+
   const btnText = submitBtn.querySelector('span');
   btnText.textContent = 'Sending...';
   submitBtn.disabled = true;
   submitBtn.style.opacity = '0.7';
 
-  // Simulate send (replace with actual form backend like Formspree/EmailJS)
-  setTimeout(() => {
+  const formData = new FormData(contactForm);
+  // Add Formspree helper fields so emails include a reply-to and subject
+  // Formspree recognizes `_replyto` and `_subject` fields
+  if (!formData.get('_replyto')) {
+    formData.append('_replyto', formData.get('email') || '');
+  }
+  if (!formData.get('_subject')) {
+    formData.append('_subject', formData.get('subject') || 'New contact form message');
+  }
+
+  // If endpoint not configured, keep previous simulated behaviour but inform user
+  if (FORM_ENDPOINT.includes('YOUR_FORM_ID')) {
     formSuccess.style.display = 'block';
+    formSuccess.textContent = "🔧 Formspree endpoint not configured. Replace FORM_ENDPOINT in app.js to enable email delivery.";
     contactForm.reset();
     btnText.textContent = 'Send Message';
     submitBtn.disabled = false;
     submitBtn.style.opacity = '';
-    
-    setTimeout(() => {
-      formSuccess.style.display = 'none';
-    }, 5000);
-  }, 1500);
+    setTimeout(() => { formSuccess.style.display = 'none'; }, 6000);
+    return;
+  }
+
+  try {
+    const res = await fetch(FORM_ENDPOINT, {
+      method: 'POST',
+      body: formData,
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (res.ok) {
+      formSuccess.style.display = 'block';
+      formSuccess.textContent = '✅ Message sent — I will get back to you soon.';
+      contactForm.reset();
+    } else {
+      let data = {};
+      try { data = await res.json(); } catch (err) { /* ignore */ }
+      formSuccess.style.display = 'block';
+      formSuccess.textContent = '❌ Error sending message. Please try again.';
+      console.error('Form submission error', data);
+    }
+  } catch (err) {
+    console.error('Form submission failed', err);
+    formSuccess.style.display = 'block';
+    formSuccess.textContent = '❌ Network error. Please try again later.';
+  } finally {
+    btnText.textContent = 'Send Message';
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '';
+    setTimeout(() => { formSuccess.style.display = 'none'; }, 6000);
+  }
 });
 
 /* ---- Smooth Scroll for Nav Links ---- */
